@@ -1,5 +1,7 @@
 # Tableの分割
 
+tag:["google-bigquery"]
+
 BigQueryでは日々生まれるデータを扱う場合、TableをDailyで分けていくのが定石としてあります。
 現在、BigQueryではDailyで分ける方法が2つあります。
 この記事ではそれぞれのやり方をメリット、デメリットをまとめていきます。
