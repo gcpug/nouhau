@@ -1,14 +1,13 @@
-# 複数パイプラインを構築する
+# 複数source, 複数sinkを持つPipelineを構築する
 
 tag:["google-cloud-dataflow","Java"]
 
-複数のInputデータに対して、同じ処理を適応するパイプラインの構築についてです。
+複数のInputデータに対して、同じ処理を適応するPipelineの構築についてです。
 例えば、DatastoreのKindやBigQueryのTableをそれぞれ処理していきたい時に利用します。
 
-![複数パイプライン](multi-pipeline.png "複数パイプライン")
+![複数source, 複数sinkを持つPipeline](multi-source-multi-sink.png "複数source, 複数sinkを持つPipeline")
 
-複数パイプラインを構築する方法は、Pipeline.apply()を複数行うだけです。
-これだけで、複数のパイプラインを構築できます。
+複数source, 複数sinkを持つPipelineを構築する方法は、Pipeline.apply()を複数行うだけです。
 
 ```
 public static void main(String[] args) {
@@ -37,8 +36,8 @@ public static void main(String[] args) {
 }
 ```
 
-Pipelineの数はBuild時に決まっていなくてもかまいません。
-例えば、以下は実行時パラメータを受け取り、その数だけパイプラインを構築している例です。
+source, sinkの数はBuild時に決まっていなくてもかまいません。
+例えば、以下は実行時パラメータを受け取り、その数だけsource, sinkを構築している例です。
 
 ```
 public static void main(String[] args) {
