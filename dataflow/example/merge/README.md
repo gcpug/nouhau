@@ -36,15 +36,16 @@ public static void main(String[] args) {
                     .as(DatastoreToDatastoreOptions.class);
     Pipeline p = Pipeline.create(options);
     Stream.of(options.getInputKinds().split(","))
-            .map(kind -> {
-                KindExpression kindExpression = KindExpression.newBuilder().setName(kind).build();
-                Query getKindQuery = Query.newBuilder().addKind(kindExpression).build();
-                return p.apply(kind, DatastoreIO.v1().read().withProjectId(options.getInputProjectId()).withQuery(getKindQuery))
-                        .apply(new EntityMigration());
-            })
+            .map(kind -> p.apply(kind, DatastoreIO.v1().read().withProjectId(options.getInputProjectId()).withQuery(buildQuery(kind))))
             .collect(Collectors.collectingAndThen(Collectors.toList(), PCollectionList::of))
             .apply(Flatten.pCollections())
+            .apply(new EntityMigration())
             .apply(DatastoreIO.v1().write().withProjectId(options.getOutputProjectId()));
     p.run();
+}
+
+private static Query buildQuery(String kind) {
+    KindExpression kindExpression = KindExpression.newBuilder().setName(kind).build();
+    return Query.newBuilder().addKind(kindExpression).build();
 }
 ```
