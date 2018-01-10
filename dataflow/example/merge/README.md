@@ -25,3 +25,17 @@ public static void main(String[] args) {
     p.run();
 }
 ```
+
+余談だが Stream と Beam を区切らないでも読める人向けには下のように書いても良い。
+
+```java
+Arrays.stream(kinds).map(kind -> {
+            KindExpression kindExpression = KindExpression.newBuilder().setName(kind).build();
+            Query getKindQuery = Query.newBuilder().addKind(kindExpression).build();
+            return p.apply(kind, DatastoreIO.v1().read().withProjectId(options.getInputProjectId()).withQuery(getKindQuery))
+                    .apply(new EntityMigration());
+        })
+        .collect(Collectors.collectingAndThen(Collectors.toList(), PCollectionList::of))
+        .apply(Flatten.pCollections())
+        .apply(DatastoreIO.v1().write().withProjectId(options.getOutputProjectId()));
+```
