@@ -27,7 +27,7 @@ public static void main(String[] args) {
 }
 ```
 
-余談だが Java 8 ネイティブな人は下のように書いても良い。
+余談だが Java 8 ネイティブな人は下のように書いても良い。 `toPCollectionList` を自前のライブラリとして用意しておくとわりとお世話になりそう。
 
 ```java
 public static void main(String[] args) {
@@ -37,11 +37,15 @@ public static void main(String[] args) {
     Pipeline p = Pipeline.create(options);
     Stream.of(options.getInputKinds().split(","))
             .map(kind -> p.apply(kind, DatastoreIO.v1().read().withProjectId(options.getInputProjectId()).withQuery(buildQuery(kind))))
-            .collect(Collectors.collectingAndThen(Collectors.toList(), PCollectionList::of))
+            .collect(toPCollectionList())
             .apply(Flatten.pCollections())
             .apply(new EntityMigration())
             .apply(DatastoreIO.v1().write().withProjectId(options.getOutputProjectId()));
     p.run();
+}
+
+private static <T> Collector<PCollection<T>, ?, PCollectionList<T>> toPCollectionList() {
+    return Collectors.collectingAndThen(Collectors.toList(), PCollectionList::of);
 }
 
 private static Query buildQuery(String kind) {
