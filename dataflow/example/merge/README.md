@@ -20,7 +20,8 @@ public static void main(String[] args) {
                 .apply(new EntityMigration());
         pcs.add(pc);
     }
-    PCollectionList.of(pcs).apply(Flatten.pCollections())
+    PCollectionList.of(pcs)
+            .apply(Flatten.pCollections())
             .apply(DatastoreIO.v1().write().withProjectId(options.getOutputProjectId()))
     p.run();
 }
