@@ -6,23 +6,21 @@ sink はそれぞれの出力先に適したレート制御のロジックなど
 合流するには `PCollectionList#apply` に Flatten を渡すなどすると良い。
 
 ```java
-public static void main(String[] args) throws CannotProvideCoderException {
+public static void main(String[] args) {
     DatastoreToDatastoreOptions options =
             PipelineOptionsFactory.fromArgs(args).withValidation()
                     .as(DatastoreToDatastoreOptions.class);
     String[] kinds = options.getInputKinds().split(",");
     Pipeline p = Pipeline.create(options);
-    PCollectionList<Entity> pcs = Arrays.stream(kinds).map(kind -> {
+    List<PCollection<Entity>> listOfPCollection = Arrays.stream(kinds).map(kind -> {
                 KindExpression kindExpression = KindExpression.newBuilder().setName(kind).build();
                 Query getKindQuery = Query.newBuilder().addKind(kindExpression).build();
-        PCollection<Entity> pc = p.apply(kind, DatastoreIO.v1().read().withProjectId(options.getInputProjectId()).withQuery(getKindQuery))
-                .apply(new EntityMigration());
-        return pc;
+                return p.apply(kind, DatastoreIO.v1().read().withProjectId(options.getInputProjectId()).withQuery(getKindQuery))
+                        .apply(new EntityMigration());
             }
-    ).collect(Collector.<PCollection<Entity>, PCollectionList<Entity>>of(() -> PCollectionList.empty(p),
-            PCollectionList::and,
-            (pcs1, pcs2) -> pcs1.and(pcs2.getAll())));
-    pcs.apply(Flatten.pCollections()).setCoder(p.getCoderRegistry().getCoder(Entity.class))
+    ).collect(Collectors.toList());
+    PCollectionList.of(listOfPCollection)
+            .apply(Flatten.pCollections())
             .apply(DatastoreIO.v1().write().withProjectId(options.getOutputProjectId()));
     p.run();
 }
