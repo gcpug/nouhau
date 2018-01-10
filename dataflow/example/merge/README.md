@@ -10,32 +10,40 @@ public static void main(String[] args) {
     DatastoreToDatastoreOptions options =
             PipelineOptionsFactory.fromArgs(args).withValidation()
                     .as(DatastoreToDatastoreOptions.class);
-    String[] kinds = options.getInputKinds().split(",");
     Pipeline p = Pipeline.create(options);
-    List<PCollection<Entity>> listOfPCollection = Arrays.stream(kinds).map(kind -> {
-                KindExpression kindExpression = KindExpression.newBuilder().setName(kind).build();
-                Query getKindQuery = Query.newBuilder().addKind(kindExpression).build();
-                return p.apply(kind, DatastoreIO.v1().read().withProjectId(options.getInputProjectId()).withQuery(getKindQuery))
-                        .apply(new EntityMigration());
-            }
-    ).collect(Collectors.toList());
-    PCollectionList.of(listOfPCollection)
-            .apply(Flatten.pCollections())
-            .apply(DatastoreIO.v1().write().withProjectId(options.getOutputProjectId()));
+    String[] kinds = options.getInputKinds().split(",");
+    List<PCollection<Entity>> pcs = new ArrayList<>();
+    for (String kind : kinds) {
+        KindExpression kindExpression = KindExpression.newBuilder().setName(kind).build();
+        Query getKindQuery = Query.newBuilder().addKind(kindExpression).build();
+        PCollection<Entity> pc = p.apply(kind, DatastoreIO.v1().read().withProjectId(options.getInputProjectId()).withQuery(getKindQuery))
+                .apply(new EntityMigration());
+        pcs.add(pc);
+    }
+    PCollectionList.of(pcs).apply(Flatten.pCollections())
+            .apply(DatastoreIO.v1().write().withProjectId(options.getOutputProjectId()))
     p.run();
 }
 ```
 
-余談だが Stream と Beam を区切らないでも読める人向けには下のように書いても良い。
+余談だが Java 8 ネイティブな人は下のように書いても良い。
 
 ```java
-Arrays.stream(kinds).map(kind -> {
-            KindExpression kindExpression = KindExpression.newBuilder().setName(kind).build();
-            Query getKindQuery = Query.newBuilder().addKind(kindExpression).build();
-            return p.apply(kind, DatastoreIO.v1().read().withProjectId(options.getInputProjectId()).withQuery(getKindQuery))
-                    .apply(new EntityMigration());
-        })
-        .collect(Collectors.collectingAndThen(Collectors.toList(), PCollectionList::of))
-        .apply(Flatten.pCollections())
-        .apply(DatastoreIO.v1().write().withProjectId(options.getOutputProjectId()));
+public static void main(String[] args) {
+    DatastoreToDatastoreOptions options =
+            PipelineOptionsFactory.fromArgs(args).withValidation()
+                    .as(DatastoreToDatastoreOptions.class);
+    Pipeline p = Pipeline.create(options);
+    Stream.of(options.getInputKinds().split(","))
+            .map(kind -> {
+                KindExpression kindExpression = KindExpression.newBuilder().setName(kind).build();
+                Query getKindQuery = Query.newBuilder().addKind(kindExpression).build();
+                return p.apply(kind, DatastoreIO.v1().read().withProjectId(options.getInputProjectId()).withQuery(getKindQuery))
+                        .apply(new EntityMigration());
+            })
+            .collect(Collectors.collectingAndThen(Collectors.toList(), PCollectionList::of))
+            .apply(Flatten.pCollections())
+            .apply(DatastoreIO.v1().write().withProjectId(options.getOutputProjectId()));
+    p.run();
+}
 ```
