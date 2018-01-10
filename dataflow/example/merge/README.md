@@ -1,3 +1,5 @@
+# Dataflow で合流する例
+
 sink はそれぞれの出力先に適したレート制御のロジックなどが実装されているので [multi-source-multi-sink](/dataflow/example/multi-source-multi-sink/README.md) に書かれているもののように、
 同じ sink に対して複数の PCollection を書き込む場合は sink を合流したほうが効率がよくなる場合がある。
 
