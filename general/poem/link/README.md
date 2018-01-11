@@ -92,6 +92,23 @@ https://docs.google.com/presentation/d/1LPBAnXSncyKCFDKC1KgDrTFYoWmx2DD9otfID-6t
 
 Compute Engine, Container Engine, App Engine, BigQuery, Cloud SQL, Dataflow のハンズオンスライド。
 
+## トレーニング
+
+### 公式トレーニング
+
+https://cloud.google.com/training/?hl=ja
+
+GCP公式トレーニングサイト
+
+### お試し無料トレーニング
+
+公式トレーニングの中の最初のIntroductionを無料で見ることができる。
+内容はGCPのサービスがどんなものがあるのかをざらっと一通り見ていくもの。
+スライドとスピーカーは英語だけど、日本語字幕が付けれるらしい。
+
+* [Google Cloud Platform Fundamentals: Core Infrastructure](https://www.coursera.org/learn/gcp-fundamentals)
+* [Google Cloud Platform Big Data and Machine Learning Fundamentals](https://www.coursera.org/learn/gcp-big-data-ml-fundamentals)
+
 ## QA
 
 ### Stackoverflow Tag 集
