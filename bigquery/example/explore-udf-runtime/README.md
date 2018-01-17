@@ -29,7 +29,8 @@ SELECT * FROM UNNEST(getPropsRec())
 ## Legacy SQL
 
 ドキュメントされている方法としては Legacy SQL で UDF を定義するには UDF Editor 上で定義する必要があるが、
-非ドキュメント関数の `js` で Legacy SQL 内から直接 UDF を使うことができる。
+非ドキュメント関数の `JS` で Legacy SQL 内から直接 UDF を使うことができる。
+https://stackoverflow.com/questions/36207063/where-is-the-bigquery-documentation-describing-how-to-define-a-javascript-udf-fu/36208489#36208489
 
 ```
 SELECT * FROM js((SELECT 1 AS x), x, "[{name: 'path', type: 'string'}, {name: 'type', type: 'string'}, {name: 'value', type: 'string'}]",
