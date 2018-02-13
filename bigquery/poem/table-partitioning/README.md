@@ -30,7 +30,8 @@ Dailyの場合、3年ぐらいになるとひっかかる感じ。
 ### Partitioned Table
 * 無制限
 
-Partitioned Tableはあくまで1つのテーブルとして扱われるので、特に制限はない。
+Partitioned Tableはあくまで1つのテーブルとして扱われるので、クエリ実行時には特に制限はない。
+ただし、 Partitonできる数が2500までなので、Dailyの場合7年弱で上限になる。
 
 ## Streaming Insert利用時にクエリに反映されるまでの時間
 
