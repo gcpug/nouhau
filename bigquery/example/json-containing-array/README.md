@@ -258,6 +258,42 @@ INNER JOIN
   UNNEST(logdata.friends) AS friends
 ```
 
+### SQL UDFを利用する
+
+#### メリット
+
+* 割りときれいに見える
+
+#### デメリット
+
+* 特になし
+
+```
+#standardSQL
+CREATE TEMPORARY FUNCTION friends_json_parser(friends ARRAY<STRING>)
+RETURNS ARRAY<STRUCT<userno STRING, nickname STRING>> AS ((
+ SELECT ARRAY_AGG(
+         STRUCT<userno STRING, nickname STRING>(
+           JSON_EXTRACT_SCALAR(friend, "$['userno']"),
+           JSON_EXTRACT_SCALAR(friend, "$['nickname']")))
+   FROM UNNEST(friends) AS friend));
+
+   WITH input_data AS (
+ SELECT '{"userno":12345,"friends":[{"userno":1, "nickname":"hogehoge"}, {"userno":1, "nickname":"fugafuga"}]}}' as json)
+
+      , records AS (
+ SELECT json_extract_scalar(json, "$['userno']") AS userno
+      , friends_json_parser(
+          regexp_extract_all(json_extract(json, "$['friends']"), '{.+?}')
+        ) AS friends
+   FROM input_data)
+
+ SELECT records.userno
+      , friend.userno AS friend_userno
+      , friend.nickname AS friend_nickname
+   FROM records, records.friends as friend
+```
+
 ## 関連情報
 
 * [BigQueryでJSON文字列を保存して配列になっている値を集計したい場合のやり方
