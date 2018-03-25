@@ -44,6 +44,12 @@ https://www.google.co.jp/press/blog-social-directory.html
 
 Google関連のBlogやSNSアカウントのまとめ
 
+### Google Cloud Blog
+
+https://medium.com/google-cloud-jp
+
+Google Japanのメンバーが記事を投稿する半分公式Blog
+
 ## 動画
 
 ### Google Cloud
