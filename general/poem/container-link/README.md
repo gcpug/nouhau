@@ -15,3 +15,11 @@ https://github.com/GoogleCloudPlatform/cloud-builders-community
 Google Container Tools Repository
 
 https://github.com/GoogleContainerTools
+
+## Blog
+
+### Ahmet Alp Balkan
+
+GKEの中の人の非公式Blog
+
+https://ahmet.im/blog/
