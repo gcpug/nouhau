@@ -10,16 +10,12 @@ intで保存していたPropertyをfloat64に変更するサンプル。
 変換していない場合、実行時に `datastore: cannot load field "Value" into a "datastore.HogeV2": type mismatch: int versus float64` というエラーが発生する。
 解決策としては、structに `datastore.PropertyLoadSaver` を実装すれば、structとEntityの変換処理をカスタマイズできるので、Load時に型がintの場合、float64に変換するようにしている。
 
+なお、DatastoreではEntityのPropertyはint, int32などでも一律int64として保存されている。
+float32についても同様にfloat64として保存されている。
+このため、変換処理についてはたとえintで保存していてもint64だけ面倒を見ればよい。
+[Propertyのドキュメント](https://godoc.org/cloud.google.com/go/datastore#Property)を参照のこと。
+
 ```
-package datastore
-
-import (
-	"context"
-	"testing"
-
-	"cloud.google.com/go/datastore"
-)
-
 type HogeV1 struct {
 	Value int
 }
@@ -31,33 +27,19 @@ type HogeV2 struct {
 var _ datastore.PropertyLoadSaver = &HogeV2{}
 
 func (h *HogeV2) Load(ps []datastore.Property) error {
-	var nps []datastore.Property
-	for _, v := range ps {
+	for idx, v := range ps {
 		if v.Name == "Value" {
 			switch i := v.Value.(type) {
-			case int:
-				v.Value = float64(i)
-			case int8:
-				v.Value = float64(i)
-			case int16:
-				v.Value = float64(i)
-			case int32:
-				v.Value = float64(i)
 			case int64:
 				v.Value = float64(i)
 			default:
 				// noop
 			}
+			ps[idx] = v
 		}
-		nps = append(nps, v)
 	}
 
-	err := datastore.LoadStruct(h, nps)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return datastore.LoadStruct(h, ps)
 }
 
 func (h *HogeV2) Save() ([]datastore.Property, error) {
@@ -85,7 +67,7 @@ func TestConvertPropertyType(t *testing.T) {
 		t.Fatal(err)
 	}
 	if e, g := 10.0, h.Value; e != g {
-		t.Fatalf("expected Value is %d, got %d", e, g)
+		t.Fatalf("expected Value is %f, got %f", e, g)
 	}
 }
 ```
