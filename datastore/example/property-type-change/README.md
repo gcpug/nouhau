@@ -27,7 +27,7 @@ type HogeV2 struct {
 var _ datastore.PropertyLoadSaver = &HogeV2{}
 
 func (h *HogeV2) Load(ps []datastore.Property) error {
-	for _, v := range ps {
+	for idx, v := range ps {
 		if v.Name == "Value" {
 			switch i := v.Value.(type) {
 			case int64:
@@ -35,6 +35,7 @@ func (h *HogeV2) Load(ps []datastore.Property) error {
 			default:
 				// noop
 			}
+			ps[idx] = v
 		}
 	}
 
