@@ -16,16 +16,29 @@ float32についても同様にfloat64として保存されている。
 [Propertyのドキュメント](https://godoc.org/cloud.google.com/go/datastore#Property)を参照のこと。
 
 ```
+package datastore
+
+import (
+	"context"
+	"testing"
+
+	"cloud.google.com/go/datastore"
+)
+
+// HogeV1 is Old Entity struct
 type HogeV1 struct {
 	Value int
 }
 
+// HogeV2 is New Entity struct
 type HogeV2 struct {
 	Value float64
 }
 
 var _ datastore.PropertyLoadSaver = &HogeV2{}
 
+// Load is datastore.PropertyLoadSaver を満たすためのfunc
+// Entityをstructに変換する処理
 func (h *HogeV2) Load(ps []datastore.Property) error {
 	for idx, v := range ps {
 		if v.Name == "Value" {
@@ -42,10 +55,13 @@ func (h *HogeV2) Load(ps []datastore.Property) error {
 	return datastore.LoadStruct(h, ps)
 }
 
+// Save is datastore.PropertyLoadSaver を満たすためのfunc
+// structをEntityに変換する処理
 func (h *HogeV2) Save() ([]datastore.Property, error) {
 	return datastore.SaveStruct(h)
 }
 
+// TestConvertPropertyType is Sample Test
 func TestConvertPropertyType(t *testing.T) {
 	ctx := context.Background()
 
@@ -70,4 +86,5 @@ func TestConvertPropertyType(t *testing.T) {
 		t.Fatalf("expected Value is %f, got %f", e, g)
 	}
 }
+
 ```
