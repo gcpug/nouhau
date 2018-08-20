@@ -77,6 +77,33 @@ Rotation periodはお試しで作る場合は `Never (manual rotation)` を指�
 ### 暗号化復号化の実行
 
 KeyRing, CryptKeyが作成できれば、暗号化復号化が行えるようになります。
+
+#### gcloudで試す
+
+gcloud kms commandを利用して暗号化復号化を行うことができます。
+
+##### fileを指定して暗号化復号化する
+
+```
+# 暗号化
+gcloud kms encrypt --key sample-key --keyring sample-key-ring --location global --plaintext-file=/home/metal_tie/plaintext.txt --ciphertext-file=/home/metal_tie/ciphertext.txt
+
+# 復号化
+gcloud kms decrypt --key sample-key --keyring sample-key-ring --location global --plaintext-file=/home/metal_tie/plaintext-out.txt --ciphertext-file=/home/metal_tie/ciphertext.txt
+```
+
+##### パイプで渡して暗号化復号化する
+
+```
+# 暗号化
+echo "hoge" | gcloud kms encrypt --key sample-key --keyring sample-key-ring --location global --plaintext-file=- --ciphertext-file=- | base64 | tr -d '\n'
+
+# 復号化
+echo "CiQA7W/KKBz1E+m/keOHnR+Wcfmf2ukBkwxzmjNuWYI9w4PjlkESMwBGfWCM0rsIMhJ3+1ePKYkasmfn6OKjmXkqzzUNCnCdMuZ3n6siwuQ2/pXq3Ia326O9Lg==" | base64 -d | gcloud kms decrypt --key sample-key --keyring sample-key-ring --location global --plaintext-file=- --ciphertext-file=-
+```
+
+#### Goで試す
+
 [API Client Library](https://developers.google.com/api-client-library/) を利用して、利用するCryptKeyとBASE64文字列を送るだけです。
 
 ``` kms.go
