@@ -121,6 +121,15 @@ Node3の時が4000が安定していたことを考えると、8000が安定し�
 
 ## おまけ
 
+### spanner.ClientConfig.NumChannels
+
 途中で `spanner.ClientConfig.NumChannels:60` とかを試しに設定してみたけど、特に変化はなかった。
 クライアントがそんなに大きなマシンではないので、NumChannelsがたくさんあっても、特に意味はなかったのかな？
 また、同時に回してたgoroutineは50個だったので、それが少ないとかもあったのかもしれない。
+
+### 負荷の高いクエリ
+
+CPUをWRITE側で大量に使っている状態で、フルスキャンする負荷の高いクエリを投げると、WRITEの数ががくっと下がっていた。
+ただ、そのクエリが完了するよりずっと前にWRITEできる量は戻る。
+
+![Stackdriver Monitoring](20181002-2012-node6-monitoring.png "Stackdriver Monitoring")
