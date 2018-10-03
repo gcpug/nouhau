@@ -51,13 +51,13 @@ ON Tweet (
 ```
 ## レポート
 
-### 10/01 17:58 (Node2)
+### 10/01 17:58 (Node2, Row:38,496,016件)
 
 ひたすらWRITEを行っていたが、基本的にSpannerのCPU利用率が100%に近付くと、Performanceが落ちるような印象だった。
 
 ![Stackdriver Trace](20181001-1758-node2-trace.png "Stackdriver Trace")
 
-### 10/01 19:39 (Node3)
+### 10/01 19:39 (Node3, Row:61,435,626件)
 
 * WRITE : 4000Tx/sec
 * READ : クエリを投げつつ、適当にRead
@@ -67,7 +67,7 @@ READでINDEXを参照するクエリを投げていたら、地味にCPUを使�
 ![Stackdriver Monitoring](20181001-1939-node3-monitoring.png "Stackdriver Monitoring")
 ![Stackdriver Trace](20181001-1939-node3-trace.png "Stackdriver Trace")
 
-### 10/01 21:35 (Node3)
+### 10/01 21:35 (Node3, Row:82,895,935件)
 
 * WRITE : 6000Tx/sec
 * READ : 0
@@ -77,7 +77,7 @@ READを止めて、WRITE Onlyにしたところ、CPUが空いたのか、処理
 ![Stackdriver Monitoring](20181001-2135-node3-monitoring.png "Stackdriver Monitoring")
 ![Stackdriver Trace](20181001-2135-node3-trace.png "Stackdriver Trace")
 
-### 10/01 22:16 (Node3)
+### 10/01 22:16 (Node3, Row:90,493,505件)
 
 * WRITE : 8000Tx/sec
 * READ : 0
@@ -87,7 +87,7 @@ READを止めて、WRITE Onlyにしたところ、CPUが空いたのか、処理
 ![Stackdriver Monitoring](20181001-2216-node3-monitoring.png "Stackdriver Monitoring")
 ![Stackdriver Trace](20181001-2216-node3-trace.png "Stackdriver Trace")
 
-### 10/01 23:47 (Node3)
+### 10/01 23:47 (Node3, Row:111,232,846件)
 
 * WRITE : 4000Tx/sec
 * READ : 0
@@ -97,7 +97,7 @@ READを止めて、WRITE Onlyにしたところ、CPUが空いたのか、処理
 ![Stackdriver Monitoring](20181001-2347-node3-monitoring.png "Stackdriver Monitoring")
 ![Stackdriver Trace](20181001-2347-node3-trace.png "Stackdriver Trace")
 
-### 10/02 00:35 (Node3)
+### 10/02 00:35 (Node3, Row:126,998,904件)
 
 * WRITE : 6000Tx/sec
 * READ : 0
@@ -107,13 +107,14 @@ READを止めて、WRITE Onlyにしたところ、CPUが空いたのか、処理
 ![Stackdriver Monitoring](20181002-0035-node3-monitoring.png "Stackdriver Monitoring")
 ![Stackdriver Trace](20181002-0035-node3-trace.png "Stackdriver Trace")
 
-### 10/02 19:45 (Node6)
+### 10/02 19:45 (Node6, Row:688,554,866件)
 
 * WRITE : 12000Tx/sec
 * READ : 0
 
 Nodeを6つに増やしてみた。
-12000Txを超えると、CPU利用率が80%ぐらいにいって、ちょっとPerformanceがぶれる
+12000Txを超えると、CPU利用率が80%ぐらいにいって、ちょっとPerformanceがぶれる。
+Node3の時が4000が安定していたことを考えると、8000が安定しそう。
 
 ![Stackdriver Monitoring](20181002-1945-node6-monitoring.png "Stackdriver Monitoring")
 ![Stackdriver Trace](20181002-1945-node6-trace.png "Stackdriver Trace")
