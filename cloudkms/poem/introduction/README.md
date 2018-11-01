@@ -96,7 +96,7 @@ gcloud kms decrypt --key sample-key --keyring sample-key-ring --location global 
 
 ```
 # 暗号化
-echo "hoge" | gcloud kms encrypt --key sample-key --keyring sample-key-ring --location global --plaintext-file=- --ciphertext-file=- | base64 | tr -d '\n'
+echo -n "hoge" | gcloud kms encrypt --key sample-key --keyring sample-key-ring --location global --plaintext-file=- --ciphertext-file=- | base64 | tr -d '\n'
 
 # 復号化
 echo "CiQA7W/KKBz1E+m/keOHnR+Wcfmf2ukBkwxzmjNuWYI9w4PjlkESMwBGfWCM0rsIMhJ3+1ePKYkasmfn6OKjmXkqzzUNCnCdMuZ3n6siwuQ2/pXq3Ia326O9Lg==" | base64 -d | gcloud kms decrypt --key sample-key --keyring sample-key-ring --location global --plaintext-file=- --ciphertext-file=-
