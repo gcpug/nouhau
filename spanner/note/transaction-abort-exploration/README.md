@@ -54,6 +54,39 @@ SELECT * FROM Tweet0 TABLESAMPLE RESERVOIR (1 ROWS);
 
 この場合、非常に広い範囲をTransactionの対象にするので、Applicationが1プロセスで同時に1txしかない場合でも、Abortされることがそれなりにある。
 
+これを修正する方法としてはReadWriteTransactionではなるべくReadの範囲を狭くする。
+これは [ベストプラクティスにもある](https://cloud.google.com/spanner/docs/sql-best-practices#avoid_large_reads_inside_read-write_transactions) し、Transactionの定石でもある。
+先程のクエリの場合は、1RowランダムサンプリングしてUpdateしたいだけなので、QueryはReadWriteTransactionの前に実行し、PKを取得して、ReadWriteTransactionの中で改めてPKでReadし直せばよい。
+
+```
+var id string
+sql := `SELECT Id FROM Tweet0 TABLESAMPLE RESERVOIR (1 ROWS);`
+err := s.sc.Single().Query(ctx, spanner.Statement{SQL: sql}).Do(func(r *spanner.Row) error {
+	return r.ColumnByName("Id", &id)
+})
+if err != nil {
+	return err
+}
+_, err = s.sc.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+	row, err := txn.ReadRow(ctx, "Tweet0", spanner.Key{id}, []string{"Id", "CommitedAt"})
+	if err != nil {
+		return err
+	}
+	var t Tweet
+	if err := row.ToStruct(&t); err != nil {
+		return err
+	}
+	m := spanner.Update("Tweet0", []string{"Id", "CommitedAt"}, []interface{}{t.ID, spanner.CommitTimestamp})
+	if err != nil {
+		return err
+	}
+	return txn.BufferWrite([]*spanner.Mutation{m})
+})
+if err != nil {
+	return err
+}
+```
+
 #### NotFound
 
 `Aborted due to transient fault` が発生しやすい2つ目のケースは、ReadWriteTransactionでReadを行ったがNotFoundだった場合。
