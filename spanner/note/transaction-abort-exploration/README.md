@@ -134,3 +134,89 @@ if err != nil {
 ```
 
 ![NotFound Tx Abort](abort-notFoundInsert.png "NotFound Tx Abort")
+
+## Transaction was aborted. It was wounded by a higher priority transaction due to conflict on keys
+
+おまけ
+
+こちらはTransactionがぶつかった時にAbortされるケース。
+`Aborted due to transient fault` を調べている時に、うまくTransactionをぶつけるにはどうすれば？みたいなのを試している時に、ふと思ったことを書いた記録。
+試したソースコードは https://github.com/sinmetal/stxabort_playground にある。
+
+### 条件
+
+ReadWriteTransactionの中でQueryとInsertを行う処理をgoroutineで複数同時に実行する。
+QueryとInsertするRowは以下の通り。
+
+#### Queryたち
+
+```
+{
+	Query: `SELECT * FROM MyTable@{FORCE_INDEX=MyTableBySI} WHERE SI = @param`,
+	Value: "si",
+},
+{
+	Query: `SELECT * FROM MyTable@{FORCE_INDEX=MyTableBySI} WHERE SI = @param`,
+	Value: uuid.New().String(),
+},
+{
+	Query: `SELECT * FROM MyTable@{FORCE_INDEX=MyTableBySI} WHERE SI > @param`,
+	Value: "aa",
+},
+{
+	Query: `SELECT * FROM MyTable@{FORCE_INDEX=MyTableBySI} WHERE SI > @param`,
+	Value: "zz",
+},
+{
+	Query: `SELECT * FROM MyTable WHERE PK = @param`,
+	Value: uuid.New().String(),
+},
+{
+	Query: `SELECT * FROM MyTable WHERE PK = @param`,
+	Value: "pk",
+},
+{
+	Query: `SELECT * FROM MyTable WHERE PK > @param`,
+	Value: "aa",
+},
+{
+	Query: `SELECT * FROM MyTable WHERE PK > @param`,
+	Value: "pk",
+},
+{
+	Query: `SELECT * FROM MyTable WHERE PK > @param`,
+	Value: "zz",
+},
+```
+
+#### InsertするMutation
+
+```
+m := spanner.Insert("MyTable",
+	[]string{"PK", "SI", "V"},
+	[]interface{}{"pk", "si", "v"},
+)
+```
+
+### 結果
+
+上記の条件で実行した場合、結果は以下になる。
+Secondary Indexを利用しているQueryはぶつかるものとぶつからないものがあり、Primary Keyを利用しているものはぶつからない。
+特におもしろいのが、 `= si` はぶつかるが、 `= pk` はぶつからないという部分。
+これはエラーメッセージの中にも書いてあるが、Primary KeyをRange Scanしているかどうかで変わっている。
+Secondary Indexは実態としてはTableが存在していて、Indexに含んでいるColumn + 元のTableのPKを、PKとして持っている。
+そのため、 `= si` を実行した場合、内部ではSecondary IndexのTableに対して、 si Columnが `si` という文字になっているKeyのRowの一覧を取得する処理を実行し、Transactionがぶつかる。
+
+```
+2018/11/21 18:07:43 failed {Query:SELECT * FROM MyTable@{FORCE_INDEX=MyTableBySI} WHERE SI = @param Value:si}. err = 4 : txn.Commit: 4 : txn.Query: spanner: code = "Aborted", desc = "Transaction was aborted. It was wounded by a higher priority transaction due to conflict on keys in range [[si,pk], [si,pk]), column PRIMARY KEY in table MyTableBySI."
+2018/11/21 18:07:47 success {Query:SELECT * FROM MyTable@{FORCE_INDEX=MyTableBySI} WHERE SI = @param Value:d24bc261-3e96-4e53-9e07-c7cb052bb401}
+2018/11/21 18:08:03 failed {Query:SELECT * FROM MyTable@{FORCE_INDEX=MyTableBySI} WHERE SI > @param Value:aa}. err = 98 : txn.Commit: 98 : txn.Query: spanner: code = "Aborted", desc = "Transaction was aborted. It was wounded by a higher priority transaction due to conflict on keys in range [[si,pk], [si,pk]), column PRIMARY KEY in table MyTableBySI."
+2018/11/21 18:08:05 success {Query:SELECT * FROM MyTable@{FORCE_INDEX=MyTableBySI} WHERE SI > @param Value:zz}
+2018/11/21 18:08:07 success {Query:SELECT * FROM MyTable WHERE PK = @param Value:b875998e-580a-4376-8f47-a4926797cfc3}
+2018/11/21 18:08:10 success {Query:SELECT * FROM MyTable WHERE PK = @param Value:pk}
+2018/11/21 18:08:20 success {Query:SELECT * FROM MyTable WHERE PK > @param Value:aa}
+2018/11/21 18:08:22 success {Query:SELECT * FROM MyTable WHERE PK > @param Value:pk}
+2018/11/21 18:08:23 success {Query:SELECT * FROM MyTable WHERE PK > @param Value:zz}
+```
+
+というわけで、基本的にReadWriteTransactionの中では、PKを明示的に指定したQuery以外は実行しない方がよい。
