@@ -131,6 +131,17 @@ log.Printf("Listening on port %s", port)
 log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
 ```
 
+### script:auto
+
+[Migrating your App Engine app from Go 1.9 to Go 1.11](https://cloud.google.com/appengine/docs/standard/go111/go-differences#migrating-appengine-sdk) に書いてなくて、地味に分かりづらいのが、app.yamlで `script: _go_app` と書いていたのを、 `script: auto` にすること。
+これをしないとDeploy時にエラーになる。
+[app.yaml](https://github.com/sinmetal/gcpugjp/commit/b5cdd4aa10c65719713fc31fbf4b8f63525e7162#diff-bb68be076839a38efa2ebc731942536a) のように更新する。
+
+```
+- url: /.*
+  script: auto
+```
+
 ### Working DirがLocalとProductionで変わる
 
 Go 1.9までは `app.yaml` の位置がWorking Dirでしたが、Go 1.11の場合、Productionはgo.modがある位置がWorking Dirになるようになります。
