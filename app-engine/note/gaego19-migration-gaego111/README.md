@@ -81,10 +81,12 @@ urlfetch, socketのように完全に脱却できたものもありますが、�
 
 * Users -> Identity-Aware Proxy?
 * Memcache -> Cloud Memorystore for Redis
+* Datastore -> Cloud Datastore
 * Search -> ...?
 * Mail -> SendGrid?
 * TaskQueue -> Cloud Tasks
 * Cron -> Cloud Scheduler
+* Image -> ...?
 
 ##### Users -> Identity-Aware Proxy?
 
@@ -94,6 +96,14 @@ urlfetch, socketのように完全に脱却できたものもありますが、�
 
 ポジション的には正しいが、Cloud Memorystoreは現状、同じVPCからの接続しか許可していないので、App Engine Standardからは接続できない。
 Cloud SQL Proxyのような機能が登場するのが待たれる。
+
+##### Datastore -> Cloud Datastore
+
+後ろ側は同じなので、機能的には同じですが、APIのInterfaceが異なるので、ソースコードは修正する必要があります。
+[goon](https://github.com/mjibson/goon) , [nds](https://github.com/qedus/nds) を使っている場合は、 `google.golang.org/appengine` にがっつり依存しているので、Libraryたちが対応するまでは移行できません。
+逆に考えるといつの日かLibraryが何かの対応をしてくれるかもしれないので、それまでのんびりしていてもよいかもしれません。
+
+`google.golang.org/appengine` でも、 `cloud.google.com/go/datastore` でも差し替えれるようにした [go.mercari.io/datastore](https://github.com/mercari/datastore) を使っておくという手もあります。
 
 ##### Search -> ...?
 
@@ -113,6 +123,15 @@ Cloud SQL Proxyのような機能が登場するのが待たれる。
 ##### Cron -> Cloud Scheduler
 
 [Cloud Scheduler](https://cloud.google.com/scheduler/) がベータになっている。
+
+##### Image -> ...?
+
+Image Serviceは地味に強力な機能で、ほぼ無料で動的にサムネイルなどを作れる強力な機能でした。
+GCPの機能としては無いので、サードパーティの移行先として各種CDNのImage Optimizationを使うことを考える必要があります。
+
+* [Akamai Image Manager](https://www.akamai.com/jp/ja/products/web-performance/image-manager.jsp)
+* [Fastly Image Optimization](https://www.fastly.com/io)
+* [SAKURA Internet Image Flux](https://www.sakura.ad.jp/services/imageflux/)
 
 ## 2nd Generationへのマイグレーション
 
@@ -171,7 +190,7 @@ App Engine Standard 1st Generationはそれだけで完成されたProductでし
 これから新しくApp Engineでアプリケーションを作り始める場合は、Go1.11で作り始めるのがおすすめです。
 
 しかし、1st Generationで作られたアプリケーションを2nd Generationへの移行は大きなBreaking Changeを伴います。
-まだ、1.11がベータで、1.9が使えなくなるまでは、2年以上はあると思うので、そんなに急いでアップデートしなければいけないわけでもありません。
+まだ、1.11がベータで、1.9が使えなくなるのは2021年ぐらいだと思うので、そんなに急いでアップデートしなければいけないわけでもありません。
 特に `login:admin` は移行先が難しいので、これに依存している場合は [Cloud Identity-Aware Proxy](https://cloud.google.com/iap/) が進化するのをしばらく待つのも一つの選択肢です。
 `Go 1.11の機能がものすごく使いたい` `urlfetch, socketで困っている` `Cloud Spannerを使いたい` などの理由がない限りはもう少し待ってもいいかもしれません。
 
