@@ -56,7 +56,7 @@ Compute Engineリリース当初はIAMのRoleとしては、OWNER, EDITOR, VIEWE
 現在、推奨されているのは `gcloud compute instances create` のオプションとして、 `--service-account` を指定して、独自のService Accountを設定することです。
 `--service-account` を設定する場合は `--scopes` を設定できず、設定されたService AccountのRoleに従います。
 
-Kubernetes Engineでも同じように `--scopes` は非推奨になっていて、 `gcloud container clusters create` で `--service-account` を利用して、独自のService Accountを設定するのが推奨されている。 refs #66
+Kubernetes Engineでも同じように `--scopes` は非推奨になっていて、 `gcloud container clusters create` で `--service-account` を利用して、独自のService Accountを設定するのが推奨されている。 refs [#66](https://github.com/gcpug/nouhau/issues/66)
 
 #### Local
 
@@ -128,3 +128,31 @@ func implicit() {
 Goの場合は [findDefaultCredentials](https://github.com/golang/oauth2/blob/d2e6202438beef2727060aa7cabdd924d92ebfd9/google/default.go#L43:6) で行っている。
 
 上記の流れで探すので、 `gcloud auth application-default login` を実行するのが面倒な場合は $GOOGLE_APPLICATION_CREDENTIALS に `key.json` を指定するのが楽な方法である。
+
+## Role
+
+GCPのIAMはResourceに対してのRoleが設定されていれば操作することができる。
+Projectが異なっていても可能で、Project AのCompute Engineから、Project BのCloud Spannerにアクセスする場合、Project BのIAMにProject AのCompute EngineのService AccountをSpannerを利用できるようにした権限で設定すればよい。
+
+![GCP IAM Role](gcp-iam-role.png "GCP IAM Role")
+
+```
+gcloud projects add-iam-policy-binding \
+      'project B' \
+      --member='serviceAccount:spanner@projectA.iam.gserviceaccount.com' \
+      --role='roles/spanner.databaseUser'
+```
+
+Accountは基本的にそのAccountを利用するProjectで持っているResourceで、各Resourceにアクセスする場合は、そのAccountにRoleを設定していけばよい。
+
+### QuotaとPrice
+
+Accountを設定する時に1つ気を付けなければならないのが、QuotaとPriceです。
+GCPのQuotaとPriceはちょいちょいややこしいところがあって、複数のProjectにResourceがあるとどのProjectのQuotaとPriceが消費されるのか、分かりづらいところがある。
+例えば、Google Cloud KMSを利用する時に、CryptKeyを作成すると、CryptKeyの料金自体はCryptKeyが存在するProjectにかかる。
+分かりづらいのが、CryptKeyを利用して暗号化復号化を行った時で、Service Accountが所属しているProjectにかかる。
+なので、Service AccountとCryptKeyが別のGCP Projectにある場合、以下の図のようになる。
+
+![Quota](kms-price-quota.png "Quota")
+
+2 Projectで、どちらも自分の持ち物のProjectであれば、そこまで気にする必要はないが、Projectがたくさんあったり、他の人のProjectがあると、QuotaとPriceがどこにかかってほしいかを考える必要がある。
