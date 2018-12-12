@@ -1,6 +1,6 @@
 # nouhau
 Google Cloud Platformのノウハウを共有するRepository
-もし、あなたがGCPを初めて利用する場合、 https://github.com/gcpug/nouhau/tree/master/general/poem/link が役立つかもしれません。
+もし、あなたがGCPを初めて利用する場合、 https://github.com/gcpug/nouhau/tree/master/general/note/link が役立つかもしれません。
 
 ## dir構成
 
