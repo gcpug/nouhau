@@ -33,8 +33,7 @@ Google Cloud Client LibraryにはOpenCencusが仕込んであるので、Stackdr
 ![Stackdriver Trace](abort-updateSampleRow.png "Stackdriver Trace")
 
 `Status message` に `Aborted due to transient fault` を表示されており、その後、再度BeginTransactionからやり直している。
-この時、 [Exponential backoff](https://en.wikipedia.org/wiki/Exponential_backoff) を行うが、 [minBackoffが1secになっている](https://github.com/GoogleCloudPlatform/google-cloud-go/blob/977bdf6a60d16cd466ccbfe6c20bfc20ddf923ba/spanner/backoff.go#L26) ので、最小でも1secの待機時間が発生する。
-そのため、1sec以上かかっているものを探せば、なんとなく見つけることができる。
+この時、 [Exponential backoff](https://en.wikipedia.org/wiki/Exponential_backoff) を行うようになっているので、少しずつリトライ間隔が伸びていく。
 
 ![Stackdriver Trace](abort-retry-wait1sec.png "Stackdriver Trace")
 
