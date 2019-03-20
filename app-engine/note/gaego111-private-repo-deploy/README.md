@@ -8,14 +8,25 @@ App Engine Go Runtime 1.11から、Deployする時にGooble Cloud Buildを利用
 暗黙的に実行されるCloud BuildのJobには干渉できないので、Secret Tokenを渡したりすることもできない。
 そのため、go getしないようにvendorを用意する必要がある。
 
-以下のような形で、vendorを作成し、 `go.mod` `go.sum` を削除しておけば、Cloud Buildの中でgo getが走らない。
+### .gcloudignore
+
+Cloud Build上でgo modulesが動かないように `.gcloudignore` に `go.mod` , `go,sum` を追加しておく 
+
+```
+go.mod
+go.sum
+```
+
+`.gcloudignore` に `vendor` があると、Deployされないので、注意
+
+### Deploy
+
+vendorを作成し、 `GO111MODULE=off` を設定した状態で、 `gcloud app deploy` を行う
 
 ```
 go mod vendor
-rm go.mod go.sum
+GO111MODULE=off gcloud app deploy .
 ```
-
-`go.mod` `go.sum` に関しては `app.yaml` と同じ階層になければ、消さなくてもよいという情報もあるが、細かいディレクトリ構成による差異については未検証。
 
 ## Refs
 
