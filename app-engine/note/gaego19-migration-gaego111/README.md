@@ -1,48 +1,14 @@
-# App Engine Standard Go 1.9 migration to Go 1.11
+# App Engine Standard Go 1.9 migration to Go 1.11に最低限必要なこと
 
 tag:["google-app-engine", "Go"]
 
-App Engine Standard Go 1.9からGo 1.11への移行ではいくつか嬉しい機能が追加されています。
-それは下回りがgVisorになることによって生まれた恩恵です。
+このドキュメントではGo 1.9のアプリケーションをGo 1.11に移行するために最低限必要なことと注意点について記します。
 
-gVisorがどういったものなのかは以下を確認するとよいです。
-
-* [Java 8 ランタイム以降のサンドボックスと gVisor by @apstndb](https://docs.google.com/presentation/d/1GKkv6GAelTwieGThqnX28f6dc7fXKwDPuypRzCYT_Zk/edit#slide=id.p)
-* [GCP のサーバーレスを支える gVisor by @apstndb](https://docs.google.com/presentation/d/14AAOJFsf9bSkJPA0rSAwFcn5XIcoalntCsUN8pTGO00/edit#slide=id.p)
-* [gVisorとGCP by @apstndb](https://docs.google.com/presentation/d/1F6k6bBS7BOUQWl9WGEpQJDyfvd04Et_-EeIHRoQzz-Y/edit#slide=id.p)
-
-## gVisorになって嬉しいこと
-
-gVisorは元々のApp Engineのサンドボックス環境に存在した課題を解決するために生まれました。
-
-### 言語の機能をそのまま使えるようにする
-
-元々のRuntimeではGoの場合、unsafeが使えないなどの問題がありました。
-ものすごく致命的というわけではないですが、一部のライブラリが使えなかったりするので、多少不便でした。
-
-外と通信するにもApp Engine SDKの機能を利用する必要がありました。
-httpを行いたければ、App Engine URLFetch APIを利用する。
-Socket通信を行いたければ、App Engine Socket APIを利用する必要がありました。
-gVisor版では、http clientなどがそのまま使えるようになっています。
-
-Local FileへのWRITEも行えなかったので、一時ファイルを書き込む必要があるライブラリを使うのも困難でした。
-gVisor版では `/tmp` にWRITEできるので、一時ファイルを保存できるようになりました。
-
-### Google Cloud Spannerへの接続
-
-従来のApp Engine SandboxではGoogle Cloud Spannerと接続することができませんでしたが、gVisor版でできるようになりました。
-
-## Go1.11でいくつか廃止されたこと
-
-### app.yaml includes の廃止
-
-includesはapp.yamlに別のファイルをincludesする機能。
-Deploy時に環境ごとに差異がある部分を取り込むのに地味に便利でしたが、廃止されました。
-同じようなことはShellなどを駆使すればできれば可能ですが、数が多いと少々めんどうです。
+まずチェックすべきは [公式ドキュメント](https://cloud.google.com/appengine/docs/standard/go111/go-differences#migrating-appengine-sdk) です。
+ただ、公式ドキュメントでは微妙なニュアンスになっているものや欠けているものがあるので、そこをフォローしていきます。
 
 ## Go1.11へのマイグレーション
 
-基本的には [公式ドキュメント通り](https://cloud.google.com/appengine/docs/standard/go111/go-differences#migrating-appengine-sdk) に行えばよい。
 最低限、必要なのはapp.yamlの修正とmain packageを作成すること。
 この時、ハマりやすいのが以下の項目。
 
@@ -79,10 +45,11 @@ log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
 Go 1.9までは `app.yaml` の位置がWorking Dirでしたが、Go 1.11の場合、Productionはgo.modがある位置がWorking Dirになるようになります。
 しかし、 `dev_appserver.py` で実行したLocalは相変わらず `app.yaml` の位置がWorking Dirなので、噛み合いません。
 そのため、 `./template/index.hml` みたいな感じでファイルをREADしていると Localでは動くけど、Deployすると `no such file or directory` になって、悲しい気持ちになります。
-これの解決策はいくつかあります。
+これの解決策は3つあります。
 1つ目は `app.yaml` と `go.mod` の位置を同じにしてしまう方法です。
 [サンプル](https://github.com/sinmetal/codelab/commit/f3eb2cacb0af05bcd733742e225fe68544fda2b3) のようにトップをmain packageにしてしまえば、OKです。
-2つ目はシンボリックリンクなどを利用して、両方のPathでアクセスできるようにしてしまう方法です。
+2つ目は `app.yaml` に [main packageの位置を指定できる機能](https://cloud.google.com/appengine/docs/standard/go111/config/appref?hl=en#main) が追加されているので、こいつを使います。
+3つ目はシンボリックリンクなどを利用して、両方のPathでアクセスできるようにしてしまう方法です。
 
 ### Local開発環境の移行
 
@@ -96,6 +63,23 @@ Go 1.11から依存関係の解決に [Go Modules](https://github.com/golang/go/
 また、Deploy時に裏で [Google Cloud Build](https://cloud.google.com/cloud-build/) を利用するようになっている。
 Go Modulesを利用した時にDeployの時間が長くなることがあるので、その場合は https://github.com/gcpug/nouhau/issues/87 のようなやり方をすると高速化できる。
 
-## いつGo1.11にアップデートすべきか？
+## Go1.11でConfig周りで廃止されたもの
 
-App Engine 1.9は2019年10月1日に新たにDeployをすることができなくなるので、Go 1.9のアプリケーションがある場合、すぐにGo1.11への移行をすべき。
+### app.yaml からいくつかの機能が廃止された
+
+いくつか廃止されてるが、使ってる人が多そうなのは以下の機能
+
+#### includes
+
+includesはapp.yamlに別のファイルをincludesする機能。
+Deploy時に環境ごとに差異がある部分を取り込むのに地味に便利でしたが、廃止されました。
+同じようなことはShellなどを駆使すればできれば可能ですが、数が多いと少々めんどうです。
+
+#### skip_files
+
+`gcloud app deploy` でdeployするようになるので、 [.gcloudignore](https://cloud.google.com/sdk/gcloud/reference/topic/gcloudignore) を使うように変更された。
+
+## なんか書いてあるけど、とりあえずやらなくていいやつ
+
+公式ドキュメントの中でOptionalと書いてある部分だが、App Engine APIはGo 1.11でそのまま使えるようになっている。
+そのため、 `login:admin` や App Engine Search API, App Engine Memcacheなどを移行する必要はない。
