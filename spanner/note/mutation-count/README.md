@@ -12,13 +12,15 @@ SpannerのCommitにはいくつか制限が存在しますが、その中の1つ
 Spannerは [TransactionをRow, Column単位で行います](https://cloud.google.com/spanner/docs/transactions#rw_transaction_performance) が、このmutationの制約も同じようにRow, Columnごとに作用します。
 更にIndexも絡んでくるので、なかなか計算が難しい値です。
 
-## mutation の数え方
+## INSERT
 
-### INSERT
+### 数え方
 
 ```
 INSERTに含むColumnの数 + INSERTするTableに存在するIndexの数
 ```
+
+### PKのみ設定した最もシンプルなケース
 
 ``` example 1
 CREATE TABLE Measure (
@@ -37,6 +39,8 @@ VALUES (
 ```
 
 この場合、1 RowのmutationはID Columnのみがカウントされて `1` となります。
+
+### PK以外のColumnも設定するケース
 
 ``` example 2
 CREATE TABLE Measure (
@@ -57,6 +61,8 @@ VALUES (
 ```
 
 この場合、1 RowのmutationはID Column, Col1 Columnがカウントされて `2` となります。
+
+### Indexが存在し、値を設定しないケース
 
 ``` example 3
 CREATE TABLE Measure (
@@ -81,6 +87,8 @@ VALUES (
 
 この場合、1 RowのmutationはID Column, MeasureCol1Indexがカウントされて `2` となります。
 Col1に何も設定しなくても、加算されるのは、おそらくMeasureCol1IndexにNULLを入れているからだと思います。
+
+### Indexが存在し、値を設定するケース
 
 ``` example 3
 CREATE TABLE Measure (
