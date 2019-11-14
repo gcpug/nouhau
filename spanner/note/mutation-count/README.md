@@ -133,7 +133,8 @@ INSERTの時は初めてRowが追加されるので、必ずIndexにRowが入り
 これはIndexに対して古いRowのDELETEと新しいRowのINSERTを行っているからではないかと考えられます。
 Indexは元TableのColumnの値をPKとして保持していると考えられ、PKは更新はできないので、DELETEとINSERTを使って洗い替えを行っていると思われます。
 
-Indexは複数のColumnを持つComposite Indexであっても、Storing Indexであっても、数え方には変わりません。
+IndexについてはComposite IndexでもStoring Indexでも数え方は同じです。
+Storing IndexはStroingしたColumnを更新した場合でも、Index更新の計算が行われます。
 
 ## Example
 
@@ -178,7 +179,7 @@ UPDATE Measure
 
 ### Composite Indexを含むColumnの一部を更新するケース
 
-``` example 2
+``` example 3
 CREATE TABLE Measure (
     ID STRING(MAX) NOT NULL,
     Col1 STRING(MAX),
@@ -203,7 +204,7 @@ UPDATE Measure
 
 ### Composite Indexを含むColumnのすべてを更新するケース
 
-``` example 2
+``` example 4
 CREATE TABLE Measure (
     ID STRING(MAX) NOT NULL,
     Col1 STRING(MAX),
@@ -225,6 +226,74 @@ UPDATE Measure
 ```
 
 この場合、1 RowのmutationはID, WithCompositeIndex1, WithCompositeIndex2, MeasureCompositeIndex がカウントされて、MeasureCompositeIndex は * 2 されるので、 `5` となります。
+
+### StoringIndexのIndexされたColumnを更新するケース
+
+``` example 5
+CREATE TABLE Measure (
+    ID STRING(MAX) NOT NULL,
+    Col1 STRING(MAX),
+    Col2 STRING(MAX),
+    Col3 STRING(MAX),
+    WithIndex1 STRING(MAX),
+    WithIndex2 STRING(MAX),
+    Storing1 STRING(MAX),
+    Storing2 STRING(MAX),
+    CommitedAt TIMESTAMP OPTIONS (allow_commit_timestamp=true),
+) PRIMARY KEY (ID);
+
+CREATE INDEX MeasureIndex1_1
+ON Measure (
+    WithIndex1
+)
+STORING (Storing1);
+
+CREATE INDEX MeasureIndex2_1
+ON Measure (
+    WithIndex2
+)
+STORING (Storing1, Storing2);
+
+UPDATE Measure 
+  SET WithIndex1 = "a"
+  WHERE ID = "000008f7-b5a3-4ada-8852-f5bf63f9e8ef"
+```
+
+この場合、1 RowのmutationはID, WithIndex1, MeasureIndex1_1 がカウントされて、MeasureIndex1_1 は * 2 されるので、 `4` となります。
+
+### StoringIndexのStoringされたColumnを更新するケース
+
+``` example 6
+CREATE TABLE Measure (
+    ID STRING(MAX) NOT NULL,
+    Col1 STRING(MAX),
+    Col2 STRING(MAX),
+    Col3 STRING(MAX),
+    WithIndex1 STRING(MAX),
+    WithIndex2 STRING(MAX),
+    Storing1 STRING(MAX),
+    Storing2 STRING(MAX),
+    CommitedAt TIMESTAMP OPTIONS (allow_commit_timestamp=true),
+) PRIMARY KEY (ID);
+
+CREATE INDEX MeasureIndex1_1
+ON Measure (
+    WithIndex1
+)
+STORING (Storing1);
+
+CREATE INDEX MeasureIndex2_1
+ON Measure (
+    WithIndex2
+)
+STORING (Storing1, Storing2);
+
+UPDATE Measure 
+  SET Storing1 = "a"
+  WHERE ID = "000008f7-b5a3-4ada-8852-f5bf63f9e8ef"
+```
+
+この場合、1 RowのmutationはID, WithIndex1, MeasureIndex1_1, MeasureIndex2_1 がカウントされて、MeasureIndex1_1, MeasureIndex2_1 は * 2 されるので、 `6` となります。
 
 ## DELETE
 
