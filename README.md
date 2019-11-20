@@ -10,7 +10,7 @@ Google Cloud Platformのノウハウを共有するRepository
 ```
 + service // GCPのサービス名
   + middleware // gcsfuse, Ansibleなど特定のミドルウェアのノウハウの場合は1つ階層を掘ってまとめておく(option)
-    + poem // 具体的な例示ではなく、読み物のようなノウハウ
+    + note // 具体的な例示ではなく、読み物のようなノウハウ
       + title // コラムを端的に表したタイトル
         + README.md
         + ... // ソースコードや画像など
