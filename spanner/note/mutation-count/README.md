@@ -406,3 +406,6 @@ SpannerのAPIはmutationの数を教えてくれません。
 唯一教えてくれるのが、20,000を超えた時のエラーです。
 そのため、mutationの数の仮説を立て、20,000, 20,001になるように実際にSpannerで実行して、仮説がある程度正しいかどうかを検証するという方法で数えました。
 誤りや新しいパターンを見つけたら、ぜひContributeをお願いします。
+
+検証用のプログラムは下記の repo に置いてあります。
+https://github.com/sinmetal/mutation_count_playground
