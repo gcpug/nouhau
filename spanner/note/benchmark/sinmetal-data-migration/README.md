@@ -4,14 +4,17 @@ tag["google-cloud-spanner"]
 
 データがすでに充分入っているTableに対して、カラムの追加時のデフォルト値の設定などのデータマイグレーションを行う時にどのような手法が取れて、どのぐらい時間がかかりそうか？を試したノート。
 
+`Deprecated`
+
+この記事の内容を試した時は Partitioned DMLが10分ぐらいでAbortされてたのだけど、今はAbortされなくなったので、この記事の結果通りにはならなくなっている。
+なので、現在はこの記事は参考にはならない。
+
 ## Partitioned DMLを試す
 
 カラム追加時のデフォルト値設定などにぴったりなのは [Partitioned DML](https://cloud.google.com/spanner/docs/dml-partitioned) なので、まずはこれを試してみた。
 Partitoned DMLはConsoleから試すことはできないので、 [Goで作成したアプリケーション](https://github.com/sinmetal/screwdriver) で実行している。
 
-実行してみた結果、TableのRowの数が100万行ぐらいまでは数分で完了するが、それ以上になると10分ほどでTransactionがAbortされ、完遂しない。
-その場合、途中までは進んだ状態になっている。
-Rollbackはできないので、前に進むにも後ろに戻るにもそれなりに考える必要がある状態になってしまう。
+簡単に試したい場合は [`gcloud spanner databases execute-sql --enable-partitioned-dml`](https://cloud.google.com/sdk/gcloud/reference/spanner/databases/execute-sql?hl=en) でも実行できる。
 
 ### Partitoned DMLをリトライし続けて完遂させる
 
