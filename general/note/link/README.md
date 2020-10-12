@@ -69,7 +69,7 @@ Cloud Next Tokyoで発表された日本の事例などの動画がアップロ�
 
 ### Cloud On Air
 
-https://cloudplatformonline.com/onair-japan-past-webinars.html#past-video
+https://inthecloud.withgoogle.com/jp-onair-19/archive.html
 
 Japanで行っている初心者向けの生放送番組。
 ガチ初心者向け。
@@ -92,9 +92,9 @@ GCPをより深く理解したい人へ。
 
 ## ハンズオン
 
-### GCP Getting Started JP
+### はじめてみよう GCP
 
-https://docs.google.com/presentation/d/1LPBAnXSncyKCFDKC1KgDrTFYoWmx2DD9otfID-6t6Fk/edit#slide=id.p
+https://goo.gle/gcho01
 
 Compute Engine, Container Engine, App Engine, BigQuery, Cloud SQL, Dataflow のハンズオンスライド。
 
