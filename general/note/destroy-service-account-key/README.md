@@ -32,7 +32,7 @@ gcloud functions deploy FUNCTION_NAME --service-account SERVICE_ACCOUNT_EMAIL
 gcloud compute instances create INSTANCE_NAMES --service-account=SERVICE_ACCOUNT
 ```
 
-GKEは他のProductより複雑でNode PoolごとにService Accountを指定するという状態になる。
+GKEは他のProductより複雑でNode PoolごとにService Accountを指定するという状態になる。(これは裏でNode PoolごとにManaged Instance Groupが生成されているからだろう)
 1つしかアプリケーションを動かしていないのであれば、いいかもしれないが、色んなアプリケーションを動かしている場合、Node Poolごとにアプリケーションを動かすわけではないので、これでは難しい。
 アプリケーションごとにService Accountを変えたい場合 [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) を使う。
 Workload Identityを使うとk8sのService AccountとGoogle Service Accountを紐付けてくれるようになる。
@@ -66,6 +66,9 @@ Google Cloud外でService Accountを使いたい時が時折ある。
 Impersonate Service Accountは指定したService AccountになりかわってGoogle CloudのAPIを実行する機能で、利用する場合はなりかわりたいService Accountの `roles/iam.serviceAccountTokenCreator` を持っている必要がある。
 
 ![Impersonate Service Account](impersonate_service_account.png "Impersonate Service Account")
+
+もう一つの方法として [gcloud auth activate-service-account](https://cloud.google.com/sdk/gcloud/reference/auth/activate-service-account?hl=en) や、$GOOGLE_APPLICATION_CREDENTIALSにService Accountのkey.jsonを置くという方法があるが、この方法ではkey.jsonを絶対漏らさないように管理する必要があるので、なかなか面倒なことになる。
+誤ってGitにCommitしようものなら、大きな悲しみが待っているので、Localでの開発のためだけにこの方法を行うのはリスクが大きいだろう。
 
 #### Google Cloud SDKでImpersonate Service Accountを使う
 
