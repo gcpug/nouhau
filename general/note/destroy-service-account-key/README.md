@@ -45,7 +45,7 @@ Instanceの中にService Accountに関するものがあり、自身にアタッ
 なので、 `gcloud functions deploy FUNCTION_NAME --service-account SERVICE_ACCOUNT_EMAIL` で指定しているのはmetadata serverからどのService Accountの情報を返すのか？を指定している感じである。
 metadata serverはCompute Engine以外でも使えるので、例えばCloud Runの [ドキュメント](https://cloud.google.com/run/docs/securing/service-identity?hl=en#fetching_identity_and_access_tokens) にも登場する。
 
-TODO 図
+![Service Accountのアタッチの仕組み](metadata_server.png "Service Accountのアタッチの仕組み")
 
 ## Local 開発 (Google Cloudの外で利用する)
 
@@ -62,7 +62,7 @@ Google Cloud外でService Accountを使いたい時が時折ある。
 このような時は [Impersonate Service Account](https://cloud.google.com/iam/docs/impersonating-service-accounts?hl=en) を利用する。
 Impersonate Service Accountは指定したService AccountになりかわってGoogle CloudのAPIを実行する機能で、利用する場合はなりかわりたいService Accountの `roles/iam.serviceAccountTokenCreator` を持っている必要がある。
 
-TODO 図
+![Impersonate Service Account](impersonate_service_account.png "Impersonate Service Account")
 
 #### Google Cloud SDKでImpersonate Service Accountを使う
 
