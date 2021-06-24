@@ -57,6 +57,8 @@ metadata serverはGoogle Cloud上でしか使えないものなので、Localで
 `gcloud auth application-default login` を使えばGoogle Cloud Client Libraryを使っていれば、 [Application Default Credentials](https://cloud.google.com/docs/authentication/production?hl=en#automatically) の仕組みの中で、認証情報を引っ張ってきてくれるので、自分のGoogle AccountでGoogle CloudのAPIを実行できる。
 そのため、開発環境は自分のGoogle Accountに必要な操作を権限を付けておく。
 
+`gcloud auth login` と `gcloud auth application-default login` を両方実行するのが面倒な場合は `gcloud auth login --update-adc` を実行すれば両方とも更新してくれる。
+
 ### Service Accountを使いたい時
 
 Google Cloud外でService Accountを使いたい時が時折ある。
