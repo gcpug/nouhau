@@ -25,7 +25,10 @@ Deployする時に1つ指定するので、Workerごとに1つのAccountにな�
 e.g.
 
 ```
+# Cloud Functions
 gcloud functions deploy FUNCTION_NAME --service-account SERVICE_ACCOUNT_EMAIL
+
+# Compute Engine
 gcloud compute instances create INSTANCE_NAMES --service-account=SERVICE_ACCOUNT
 ```
 
@@ -72,7 +75,10 @@ Impersonate Service AccountはGoogle Cloud SDKでも利用できる。
 e.g.
 
 ```
+# Cloud Pub/Sub
 gcloud pubsub subscriptions pull SUBSCRIPTION --impersonate-service-account=service-account@google.com
+
+# Cloud Storage
 gsutil -i "service-account@google.com" ls gs://hoge
 ```
 
