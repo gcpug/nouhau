@@ -133,4 +133,4 @@ func main() {
 ```
 
 実際、自分でコードを書く場合、Impersonate Service Account限定にすると使いづらいと思うので、Impersonate Service Accountのオプションが指定されていれば、それを利用し、そうでない場合はApplication Default Credentialsを使うという順番で実装しておくとよい。
-Goの場合は https://github.com/apstndb/adcplus/tree/main/tokensource がその実装を持っているので、このライブラリを利用するもしくは参考にして実装するとよいだろう。
+Goの場合は [github.com/apstndb/adcplus/tokensource](https://github.com/apstndb/adcplus/tree/main/tokensource) がその実装を持っているので、このライブラリを利用するもしくは参考にして実装するとよいだろう。
