@@ -134,3 +134,10 @@ func main() {
 
 実際、自分でコードを書く場合、Impersonate Service Account限定にすると使いづらいと思うので、Impersonate Service Accountのオプションが指定されていれば、それを利用し、そうでない場合はApplication Default Credentialsを使うという順番で実装しておくとよい。
 Goの場合は [github.com/apstndb/adcplus/tokensource](https://github.com/apstndb/adcplus/tree/main/tokensource) がその実装を持っているので、このライブラリを利用するもしくは参考にして実装するとよいだろう。
+
+## 合わせて読みたい
+
+### [Creating short-lived service account credentials](https://cloud.google.com/iam/docs/creating-short-lived-service-account-credentials?hl=en)
+
+永続的なKeyを生成することなく、短い時間のみ有効なTokenをうまく利用してService Accountを運用するためのドキュメント。
+この記事では触れていないが、Impersonateを複数段で行う[Delegated Chain](https://cloud.google.com/iam/docs/creating-short-lived-service-account-credentials?hl=en#sa-credentials-delegated-chain) の話とかが書いてある。
