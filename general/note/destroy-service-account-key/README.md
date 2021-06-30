@@ -141,3 +141,7 @@ Goの場合は [github.com/apstndb/adcplus/tokensource](https://github.com/apstn
 
 永続的なKeyを生成することなく、短い時間のみ有効なTokenをうまく利用してService Accountを運用するためのドキュメント。
 この記事では触れていないが、Impersonateを複数段で行う[Delegated Chain](https://cloud.google.com/iam/docs/creating-short-lived-service-account-credentials?hl=en#sa-credentials-delegated-chain) の話とかが書いてある。
+
+### [GCP の Compute Metadata Credentials について](https://zenn.dev/apstndb/articles/10349708f25985)
+
+metadata serverからtokenを取得する仕組みについて、より詳しく書いてある。
