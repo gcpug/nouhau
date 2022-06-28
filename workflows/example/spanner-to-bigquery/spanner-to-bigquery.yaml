@@ -1,0 +1,129 @@
+main:
+    params: [args]
+    steps:
+    - init:
+        assign:
+            - PROJECT_ID: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+            - SPANNER_INSTANCE: xxx
+            - SPANNER_DATABASE: xxx
+            - GCS_BUCKET_BACKUP: ${PROJECT_ID+"-spanner-backup"}
+            - DATAFLOW_LOCATION: us-central1
+            - DATAFLOW_TEMPLATE: gs://dataflow-templates/latest/Cloud_Spanner_to_GCS_Avro
+            - BQ_DATASET: spanner_imports
+            - BQ_LOCATION: US
+    - launch_dataflow_job:
+        call: googleapis.dataflow.v1b3.projects.locations.templates.launch
+        args:
+            projectId: ${PROJECT_ID}
+            location: ${DATAFLOW_LOCATION}
+            gcsPath: ${DATAFLOW_TEMPLATE}
+            body:
+                jobName: spanner-backup
+                parameters:
+                    instanceId: ${SPANNER_INSTANCE}
+                    databaseId: ${SPANNER_DATABASE}
+                    spannerProjectId: ${PROJECT_ID}
+                    outputDir: ${"gs://"+GCS_BUCKET_BACKUP+"/backup/"}
+                    spannerPriority: LOW
+                    shouldExportTimestampAsLogicalType: "true"
+                    avroTempDirectory: ${"gs://"+GCS_BUCKET_BACKUP+"/temp/"}
+            validateOnly: false
+        result: launchResult
+    - wait_for_spanner_export:
+        call: wait_for_dataflow_job_done
+        args:
+            jobId: ${launchResult.job.id}
+            projectId: ${PROJECT_ID}
+            location: ${DATAFLOW_LOCATION}
+    - get_spanner_export:
+        call: googleapis.storage.v1.objects.get
+        args:
+            bucket: ${GCS_BUCKET_BACKUP}
+            object: ${"backup%2F"+SPANNER_INSTANCE+"-"+SPANNER_DATABASE+"-"+launchResult.job.id+"%2Fspanner-export.json"}
+        result: spannerExport
+    - download_spanner_export:
+        call: http.request
+        args:
+            url: ${spannerExport.mediaLink}
+            method: GET
+            auth:
+                type: OAuth2
+        result: spannerExportJson
+    - load_bigquery:
+        parallel:
+            for:
+                value: table
+                in: ${json.decode(spannerExportJson.body).tables}
+                steps:
+                - load_bigquery_table:
+                    call: googleapis.bigquery.v2.jobs.insert
+                    args:
+                        projectId: ${PROJECT_ID}
+                        body:
+                            configuration:
+                                load:
+                                    createDisposition: CREATE_IF_NEEDED
+                                    writeDisposition: WRITE_TRUNCATE
+                                    destinationTable:
+                                        projectId: ${PROJECT_ID}
+                                        datasetId: ${BQ_DATASET}
+                                        tableId: ${table.name}
+                                    sourceFormat: AVRO
+                                    useAvroLogicalTypes: true
+                                    sourceUris:
+                                        - ${"gs://"+GCS_BUCKET_BACKUP+"/backup/"+SPANNER_INSTANCE+"-"+SPANNER_DATABASE+"-"+launchResult.job.id+"/"+table.name+".avro*"}
+                    result: bigqueryLoadJob
+                - wait_for_table_load:
+                    call: wait_for_bigquery_load_job_done
+                    args:
+                        jobId: ${bigqueryLoadJob.jobReference.jobId}
+                        projectId: ${PROJECT_ID}
+                        table: ${table.name}
+    - the_end:
+        return: "SUCCESS"
+wait_for_dataflow_job_done:
+    params: [jobId, location, projectId]
+    steps:
+        - get_dataflow_job:
+            call: googleapis.dataflow.v1b3.projects.locations.jobs.get
+            args:
+                jobId: ${jobId}
+                location: ${location}
+                projectId: ${projectId}
+            result: jobResult
+        - check_dataflow_job_done:
+            switch:
+              - condition: ${jobResult.currentState=="JOB_STATE_DONE"}
+                steps:
+                  - done:
+                      return: jobResult
+        - wait_for_job_completion:
+            call: sys.sleep
+            args:
+                seconds: 30
+            next: get_dataflow_job
+wait_for_bigquery_load_job_done:
+    params: [jobId, projectId, table]
+    steps:
+        - get_bigquery_job:
+            call: googleapis.bigquery.v2.jobs.get
+            args:
+                jobId: ${jobId}
+                location: ${BQ_LOCATION}
+                projectId: ${projectId}
+            result: jobResult
+        - check_bigquery_job_done:
+            switch:
+              - condition: ${jobResult.status.state=="DONE" AND map.get(jobResult.status, "errors")==null}
+                steps:
+                  - succeeded:
+                      return: jobResult
+              - condition: ${jobResult.status.state=="DONE" AND map.get(jobResult.status, "errors")!=null}
+                steps:
+                  - failed:
+                      raise: ${"Failed to load table "+table+" errorResult "+jobResult.status.errorResult.message}
+        - wait_for_job_completion:
+            call: sys.sleep
+            args:
+                seconds: 20
+            next: get_bigquery_job
