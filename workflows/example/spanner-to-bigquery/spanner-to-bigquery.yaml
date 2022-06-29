@@ -1,0 +1,175 @@
+main:
+    params: [args]
+    steps:
+    - init:
+        assign:
+            - PROJECT_ID: ${sys.get_env("GOOGLE_CLOUD_PROJECT_ID")}
+            - SPANNER_INSTANCE: xxxx
+            - SPANNER_DATABASE: xxxx
+            - GCS_BUCKET_BACKUP: ${PROJECT_ID+"-spanner-backup"}
+            - DATAFLOW_LOCATION: us-central1
+            - DATAFLOW_TEMPLATE: gs://dataflow-templates/2022-06-06-00_RC00/Cloud_Spanner_to_GCS_Avro
+            - BQ_LOCATION: US
+            - BQ_DATASET: xxxx
+            - succeededTables: []
+    - check_existing_export:
+        switch:
+            - condition: ${map.get(args, "exportDirectory")!=null}
+              steps:
+                  - set_existing_export_directory:
+                      assign:
+                          - exportDirectory: ${args.exportDirectory}
+                  - go_get_spanner_export:
+                      next: get_spanner_export
+    - export_spanner:
+        call: launch_dataflow_job_and_wait
+        args:
+            projectId: ${PROJECT_ID}
+            location: ${DATAFLOW_LOCATION}
+            template: ${DATAFLOW_TEMPLATE}
+            instance: ${SPANNER_INSTANCE}
+            database: ${SPANNER_DATABASE}
+            bucket: ${GCS_BUCKET_BACKUP}
+        result: launchResult
+    - set_export_directory:
+        assign:
+            - exportDirectory: ${SPANNER_INSTANCE+"-"+SPANNER_DATABASE+"-"+launchResult.job.id}
+    - get_spanner_export:
+        call: download_gcs_object_as_json
+        args:
+            bucket: ${GCS_BUCKET_BACKUP}
+            object: ${exportDirectory+"%2F"+"spanner-export.json"}
+        result: spannerExport
+    - load_bigquery:
+        parallel:
+            shared: [succeededTables]
+            for:
+                value: table
+                in: ${spannerExport.tables}
+                steps:
+                - load_bigquery_table:
+                    call: load_bigquery_and_wait
+                    args:
+                        projectId: ${PROJECT_ID}
+                        location: ${BQ_LOCATION}
+                        dataset: ${BQ_DATASET}
+                        table: ${table.name}
+                        sourceUri: ${"gs://"+GCS_BUCKET_BACKUP+"/"+exportDirectory+"/"+table.name+".avro*"}
+                    result: bigqueryLoadJob
+                - add_succeeded_tables:
+                    assign:
+                        - succeededTables: ${list.concat(succeededTables, bigqueryLoadJob.configuration.load.destinationTable.tableId)}
+    - the_end:
+        return: ${succeededTables}
+
+launch_dataflow_job_and_wait:
+    params: [projectId, location, template, instance, database, bucket]
+    steps:
+        - launch_dataflow_job:
+            call: googleapis.dataflow.v1b3.projects.locations.templates.launch
+            args:
+                projectId: ${projectId}
+                location: ${location}
+                gcsPath: ${template}
+                body:
+                    jobName: spanner-backup
+                    parameters:
+                        instanceId: ${instance}
+                        databaseId: ${database}
+                        spannerProjectId: ${projectId}
+                        outputDir: ${"gs://"+bucket+"/"}
+                        spannerPriority: LOW
+                        shouldExportTimestampAsLogicalType: "true"
+                        avroTempDirectory: ${"gs://"+bucket+"/temp/"}
+                validateOnly: false
+            result: launchResult
+        - get_dataflow_job:
+            call: googleapis.dataflow.v1b3.projects.locations.jobs.get
+            args:
+                jobId: ${launchResult.job.id}
+                location: ${location}
+                projectId: ${projectId}
+            result: jobResult
+        - check_dataflow_job_done:
+            switch:
+              - condition: ${jobResult.currentState=="JOB_STATE_DONE"}
+                steps:
+                  - done:
+                      return: ${launchResult}
+              - condition: ${jobResult.currentState=="JOB_STATE_FAILED"}
+                steps:
+                  - failed:
+                      raise: ${"Failed to launch dataflow job for spanner export"}
+        - wait_for_job_completion:
+            call: sys.sleep
+            args:
+                seconds: 30
+            next: get_dataflow_job
+
+download_gcs_object_as_json:
+    params: [bucket, object]
+    steps:
+        - get_object:
+            call: googleapis.storage.v1.objects.get
+            args:
+                bucket: ${bucket}
+                object: ${object}
+            result: objectInfo
+        - download_object:
+            call: http.request
+            args:
+                url: ${objectInfo.mediaLink}
+                method: GET
+                auth:
+                    type: OAuth2
+            result: response
+        - as_json:
+            return: ${json.decode(response.body)}
+
+load_bigquery_and_wait:
+    params: [projectId, location, dataset, table, sourceUri]
+    steps:
+        - load_bigquery_table:
+            call: googleapis.bigquery.v2.jobs.insert
+            args:
+                projectId: ${projectId}
+                body:
+                    configuration:
+                        load:
+                            createDisposition: CREATE_IF_NEEDED
+                            writeDisposition: WRITE_TRUNCATE
+                            destinationTable:
+                                projectId: ${projectId}
+                                datasetId: ${dataset}
+                                tableId: ${table}
+                            sourceFormat: AVRO
+                            useAvroLogicalTypes: true
+                            sourceUris:
+                                - ${sourceUri}
+            result: bigqueryLoadJob
+        - get_bigquery_job:
+            call: googleapis.bigquery.v2.jobs.get
+            args:
+                jobId: ${bigqueryLoadJob.jobReference.jobId}
+                location: ${location}
+                projectId: ${projectId}
+            result: jobResult
+        - check_bigquery_job_done:
+            switch:
+              - condition: ${jobResult.status.state=="DONE" AND map.get(jobResult.status, "errorResult")==null}
+                steps:
+                  - succeeded:
+                      return: ${jobResult}
+              - condition: ${jobResult.status.state=="DONE" AND map.get(jobResult.status, "errorResult")!=null AND map.get(jobResult.status.errorResult, "reason")=="backendError"}
+                steps:
+                  - backenderror:
+                      next: load_bigquery_table
+              - condition: ${jobResult.status.state=="DONE" AND map.get(jobResult.status, "errorResult")!=null}
+                steps:
+                  - failed:
+                      raise: ${"Failed to load table "+table+" errorResult "+jobResult.status.errorResult.message}
+        - wait_for_job_completion:
+            call: sys.sleep
+            args:
+                seconds: 20
+            next: get_bigquery_job
