@@ -127,6 +127,9 @@ main:
 launch_dataflow_job_and_wait:
     params: [projectId, location, template, instance, database, bucket]
     steps:
+        - assing_wait_seconds:
+            assign:
+                - wait_seconds: 0    
         - launch_dataflow_job:
             call: googleapis.dataflow.v1b3.projects.locations.templates.launch
             args:
@@ -145,6 +148,10 @@ launch_dataflow_job_and_wait:
                         avroTempDirectory: ${"gs://"+bucket+"/temp/"}
                 validateOnly: false
             result: launchResult
+        - wait_for_job_completion_1st:
+            call: sys.sleep
+            args:
+                seconds: 300
         - get_dataflow_job:
             call: googleapis.dataflow.v1b3.projects.locations.jobs.get
             args:
@@ -162,10 +169,17 @@ launch_dataflow_job_and_wait:
                 steps:
                   - failed:
                       raise: ${"Failed to launch dataflow job for spanner export"}
+              - condition: ${wait_seconds>3600}
+                steps:
+                  - timeout:
+                      raise: ${"Timeout dataflow job for spanner export"}
         - wait_for_job_completion:
             call: sys.sleep
             args:
-                seconds: 30
+                seconds: 20
+        - repeat_check_job:
+            assign:
+                - wait_seconds: ${wait_seconds + 20}
             next: get_dataflow_job
 ```
 
@@ -173,7 +187,10 @@ launch_dataflow_job_and_wait:
 ここではDataflowの実行リージョン、テンプレートのGCSパス、SpannerのインスタンスIDとデータベースID、Avroファイルを保存するバケット名を引数として定義しています。
 
 subworkflowである`launch_dataflow_job_and_wait`のstepsも上から順次実行されます。
-最初のstepではDataflow TemplateからDataflow Jobを起動する[Dataflow Template Launch API](https://cloud.google.com/workflows/docs/reference/googleapis/dataflow/v1b3/projects.locations.templates/launch)を指定しています。
+最初のstepではTimeout時に例外を発生させるために、DataflowのJobの実行時間を保持する変数を定義して0で初期化しています。
+後のstepでこの変数に待ち時間を追加していき一定時間を超えたらTimeoutとして失敗させるようにしています。
+
+2番目のstepではDataflow TemplateからDataflow Jobを起動する[Dataflow Template Launch API](https://cloud.google.com/workflows/docs/reference/googleapis/dataflow/v1b3/projects.locations.templates/launch)を指定しています。
 Jobのパラメータとして、読み込むSpannerのGCPプロジェクトID、インスタンスID、データベースIDを指定しています。
 またAvroファイルを出力するGCSのパスを指定しており、これらの値は引数として受け取った変数を利用しています。
 その他のパラメータとして`spannerPriority`や`shouldExportTimestampAsLogicalType`を指定しています。
@@ -182,16 +199,22 @@ Jobのパラメータとして、読み込むSpannerのGCPプロジェクトID�
 `result`にはcallで実行した結果が`launchResult`という変数に格納することを指示しており、次以降のstepでこの変数を参照することができます。
 このstepはDataflow Jobの完了を待つことなく終了し次のstepに推移します。Jobの完了を待つためにこの後のstepでこの変数を参照します。
 
-次のstepではDataflowのJobの実行状態などを含む情報を取得する[Dataflow Job Get API](https://cloud.google.com/workflows/docs/reference/googleapis/dataflow/v1b3/projects.locations.jobs/get)を呼び出しており、Job起動時にレスポンスとして受け取ったJobIdを指定して結果はjobResultという変数に代入しています。
+3番目のstepでは[sys.sleep](https://cloud.google.com/workflows/docs/reference/stdlib/sys/sleep)関数を使ってJob起動後に最初にJob完了を確認するまでの待ちを入れています。
+取得対象のSpannerにデータ量の多いTableが存在する場合はJobが完了するのにまとまった時間が掛かるためJob完了のチェック回数を減らすためのもので、Jobが平均的に完了するのに要する秒数を指定します。
 
-次のstepではjobResultの中身を確認してJobが完了していたらsubworkflowを完了して処理を抜け出すよう定義しています。
+4番目のstepではDataflowのJobの実行状態などを含む情報を取得する[Dataflow Job Get API](https://cloud.google.com/workflows/docs/reference/googleapis/dataflow/v1b3/projects.locations.jobs/get)を呼び出しており、Job起動時にレスポンスとして受け取ったJobIdを指定して結果はjobResultという変数に代入しています。
+
+5番目のstepではjobResultの中身を確認してJobが完了していたらsubworkflowを完了して処理を抜け出すよう定義しています。
 またDataflow Jobが失敗していた場合は例外を投げてworkflowの処理が失敗となるように定義しています。
-Jobが終わっていなかった場合は次のstepに遷移してインターバルとして30秒待つ組み込み関数を実行しています。
-30秒待ったあとは`get_dataflow_job`のstepに遷移して繰り返しJobの状態を確認するよう定義します。
+先に定義した待ち時間保持用の変数`wait_seconds`が一定時間(ここでは1時間を設定)を超えたらTimeoutとして例外を投げて処理を失敗させています。
+Jobが終わっていなかった場合は次のstepに遷移してインターバルとして20秒待つ組み込み関数を実行しています。
+
+20秒待ったあとは最後のstep`repeat_check_job`にて変数`wait_seconds`の値を20増やして`get_dataflow_job`のstepに遷移して繰り返しJobの状態を確認するよう定義します。
+この20秒という値は実際のJobの実行時間などを考慮して適宜変更ください。
 
 ### set_export_directory: Spannerのexportディレクトリを変数として設定
 
-4番目のstepでは前のstepで完了したDataflow JobによりSpannerからexportされたファイルが格納されたディレクトリをDataflowのJob情報から組み立てて変数として設定しています。
+5番目のstepでは前のstepで完了したDataflow JobによりSpannerからexportされたファイルが格納されたディレクトリをDataflowのJob情報から組み立てて変数として設定しています。
 
 ```yaml
 main:
@@ -291,6 +314,9 @@ main:
 load_bigquery_and_wait:
     params: [projectId, location, dataset, table, sourceUri]
     steps:
+        - assing_wait_seconds:
+            assign:
+                - wait_seconds: 0
         - load_bigquery_table:
             call: googleapis.bigquery.v2.jobs.insert
             args:
@@ -330,10 +356,17 @@ load_bigquery_and_wait:
                 steps:
                   - failed:
                       raise: ${"Failed to load table "+table+" errorResult "+jobResult.status.errorResult.message}
+              - condition: ${wait_seconds>3600}
+                steps:
+                  - timeout:
+                      raise: ${"Timeout to load table "+table}
         - wait_for_job_completion:
             call: sys.sleep
             args:
-                seconds: 20
+                seconds: 10
+        - repeat_check_job:
+            assign:
+                - wait_seconds: ${wait_seconds + 10}
             next: get_bigquery_job
 ```
 
@@ -345,13 +378,21 @@ Spannerから出力されたAvroファイルは`{指定したGCSパス}/{spanner
 このテーブル名からAvroファイルのパスを組み立ててAvroファイルから同名のテーブルをBigQueryにロードします。
 
 `load_bigquery_and_wait`では指定されたパスのGCSのAvroファイルから指定されたBigQueryのテーブルにデータをロード、正常完了を待つという順で処理を行います。
-最初のstep`load_bigquery_table`では指定されたGCSパスのAvroファイルからデータをテーブルをロードするBigQueryのJobを実行する[BigQuery Jobs Insert API](https://cloud.google.com/workflows/docs/reference/googleapis/bigquery/v2/jobs/insert)を実行します。
+
+最初のstep`assing_wait_seconds`では`launch_dataflow_job_and_wait`と同じようにテーブルのロードに時間が掛かりすぎた場合にTimeoutでWorkflowを失敗させるための処理時間を保持する変数`wait_seconds`を定義しています。
+
+2番目のstep`load_bigquery_table`では指定されたGCSパスのAvroファイルからデータをテーブルをロードするBigQueryのJobを実行する[BigQuery Jobs Insert API](https://cloud.google.com/workflows/docs/reference/googleapis/bigquery/v2/jobs/insert)を実行します。
 ここではAvroのTimestampやDateなどの型をBigQueryで同じ型として取り込むために`useAvroLogicalTypes`でtrueを指定します。
 
-次のstepでは[BigQuery Jobs Get API](https://cloud.google.com/workflows/docs/reference/googleapis/bigquery/v2/jobs/get)を使ってBigQueryのテーブルロードのJob情報を取得しています。
-その次のstepではJobの状態をチェックして、正常に完了するとJob情報をsubworkflowの呼び出し元に返して処理を抜けます。
+3番目のstep`get_bigquery_job`では[BigQuery Jobs Get API](https://cloud.google.com/workflows/docs/reference/googleapis/bigquery/v2/jobs/get)を使ってBigQueryのテーブルロードのJob情報を取得しています。
+
+4番目のstep`check_bigquery_job_done`では取得したJobの状態をチェックして、正常に完了するとJob情報をsubworkflowの呼び出し元に返して処理を抜けます。
 テーブルロードのJobが失敗した場合は例外を発生させて処理を異常終了させますが、backendErrorが原因の場合はリトライで正常に処理できる場合が多いため、`load_bigquery_table`に遷移してテーブルロード処理をやり直します。
-処理がまだ完了していなかった場合は20秒待って`get_bigquery_job`に遷移しチェックを繰り返します。
+待ち時間保持用の変数`wait_seconds`が一定時間(ここでは1時間を設定)を超えたらTimeoutとして例外を投げて処理を失敗させています。
+Jobが終わっていなかった場合は次のstep`wait_for_job_completion`に遷移してインターバルとして10秒待つ組み込み関数を実行しています。
+
+10秒待ったあとは最後のstep`repeat_check_job`にて変数`wait_seconds`の値を10増やして`get_bigquery_job`のstepに遷移して繰り返しJobの状態を確認するよう定義します。
+この10秒という値は実際のJobの実行時間などを考慮して適宜変更ください。
 
 全てのテーブルロードのJobが完了すると、workflowは正常に処理を終了します。
 (一つでもテーブルロードJobが失敗した場合はworkflow全体が失敗したとみなされます)

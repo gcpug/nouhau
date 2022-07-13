@@ -65,6 +65,9 @@ main:
 launch_dataflow_job_and_wait:
     params: [projectId, location, template, instance, database, bucket]
     steps:
+        - assing_wait_seconds:
+            assign:
+                - wait_seconds: 0
         - launch_dataflow_job:
             call: googleapis.dataflow.v1b3.projects.locations.templates.launch
             args:
@@ -83,6 +86,10 @@ launch_dataflow_job_and_wait:
                         avroTempDirectory: ${"gs://"+bucket+"/temp/"}
                 validateOnly: false
             result: launchResult
+        - wait_for_job_completion_1st:
+            call: sys.sleep
+            args:
+                seconds: 300
         - get_dataflow_job:
             call: googleapis.dataflow.v1b3.projects.locations.jobs.get
             args:
@@ -100,10 +107,17 @@ launch_dataflow_job_and_wait:
                 steps:
                   - failed:
                       raise: ${"Failed to launch dataflow job for spanner export"}
+              - condition: ${wait_seconds>3600}
+                steps:
+                  - timeout:
+                      raise: ${"Timeout dataflow job for spanner export"}
         - wait_for_job_completion:
             call: sys.sleep
             args:
-                seconds: 30
+                seconds: 20
+        - repeat_check_job:
+            assign:
+                - wait_seconds: ${wait_seconds + 20}
             next: get_dataflow_job
 
 download_gcs_object_as_json:
@@ -129,6 +143,9 @@ download_gcs_object_as_json:
 load_bigquery_and_wait:
     params: [projectId, location, dataset, table, sourceUri]
     steps:
+        - assing_wait_seconds:
+            assign:
+                - wait_seconds: 0
         - load_bigquery_table:
             call: googleapis.bigquery.v2.jobs.insert
             args:
@@ -168,8 +185,15 @@ load_bigquery_and_wait:
                 steps:
                   - failed:
                       raise: ${"Failed to load table "+table+" errorResult "+jobResult.status.errorResult.message}
+              - condition: ${wait_seconds>3600}
+                steps:
+                  - timeout:
+                      raise: ${"Timeout to load table "+table}
         - wait_for_job_completion:
             call: sys.sleep
             args:
-                seconds: 20
+                seconds: 10
+        - repeat_check_job:
+            assign:
+                - wait_seconds: ${wait_seconds + 10}
             next: get_bigquery_job
