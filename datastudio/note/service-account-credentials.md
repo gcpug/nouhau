@@ -29,3 +29,13 @@
 * 対象のサービスアカウントには必要な BigQuery ロール（例: BigQuery Data Viewer, BigQuery Job User）を与える。
 
 のように、通常の GCP のサービスアカウント周りの権限設定の範疇で全て設定できる。
+
+### 注意
+
+デフォルトでは BigQuery データソースは指定したテーブルを含むプロジェクトでジョブを発行するため、テーブルがある各プロジェクトの BigQuery Job User が必要になると考えられる。
+カスタムクエリを使うと、 Billing Project としてジョブを発行するプロジェクトを設定した上で、任意のプロジェクト内のデータセットに含まれるテーブルを参照できるので BigQuery Job User を集約できる。
+
+## References
+
+* [データの認証情報](https://support.google.com/datastudio/answer/6371135?hl=ja)
+* [データポータル用に Google Cloud サービス アカウントを設定する](https://support.google.com/datastudio/answer/10835295)
